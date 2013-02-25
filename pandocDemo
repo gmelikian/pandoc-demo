@@ -1,0 +1,79 @@
+*Below I briefly outline why Pandox is an essential part of my research workflow, and demonstrate how to seamlessly integrate it with a bibligraphic system and code written in R to produce high quality word or pdf documents. I also include all the functions needed to get this working fast.*
+
+Knitr is great. I'm writing this in it right now. [It 'knits' markdown together with R code](http://jeromyanglim.blogspot.co.uk/2012/05/getting-started-with-r-markdown-knitr.html) and outputs some pretty excellent html pages. The difficulty is getting these into Word for final editing, emailing to colleagues, or similar. Try copy and paste, for instance, and you'll get the text and the formatting no problem, but any plots or tables will likely be replaced by Word's 'missing image' graphic. The solution: Pandoc.
+
+There is an R library, Pander, which works well. But for full functionately you're best off downloading the Pandoc application from [here](http://johnmacfarlane.net/pandoc/installing.html). 
+
+Write a markup document in RStudio, set your working directory to the location of your file, then compile it as follows:
+```{r echo=T, eval=FALSE,comment=F,message=F,warning=F}
+name="demo"
+library(knitr)
+knit(paste0(name,".Rmd"), encoding="utf-8")
+system(paste0("pandoc -o ",name,".docx ",name,".md"))
+```
+The code above works by running the command line from within R
+
+And like magic the document is created. 
+
+
+### Add references and a style sheet
+Now let's make things a bit more interesting. What about adding references? Go to your reference manager of choice, export a BibTeX file with your library, save it in the same directory as above. For this step I have so far found Mendeley the best, because it will automatically synchronise with the BibTeX file - so there's no need to re-export the library every singly time you add a reference. 
+
+Now add references as follows: 
+> O'Hara et. al. ran numerous tests to illustrate how a log transforming data consistently gave suboptimal results [@OHara2010].
+
+Which results in:
+
+> O'Hara et. al. ran numerous tests to illustrate how a log transforming data consistently gave suboptimal results (O’Hara and Kotze 2010).
+
+You can also add footnotes, which Word will read in the correct order. Just give them all a unique label, indicating where the note should go, and then subsequently specify the footnote text:
+
+> A linear model is inappropriate for count data, as it will predict values below 0 [\^mynote1].
+ 
+> [\^mynote1]: O'Hara et. al. ran numerous tests to illustrate how a log transforming data consistently gave suboptimal results [@OHara2010].
+
+Output: 
+> A linear model is inappropriate for count data, as it will predict values below 0.^1  
+
+> ^1 O'Hara et. al. ran numerous tests to illustrate how a log transforming data consistently gave suboptimal results (O’Hara and Kotze 2010).
+
+And that's just about the basics covered. Compile this document with the function below
+
+```{r echo=T,eval=F}
+knitsDoc <- function(name){
+library(knitr)
+knit(paste0(name,".Rmd"), encoding="utf-8")
+system(paste0("pandoc -o ",name,".docx ",name,".md --bibliography library.bib --csl taylor-and-francis-harvard-x.csl"))
+}
+```
+
+As before the function will use the command line to execute, only now we've added in a few extra options: we' ve specified where our bibliography lies (remember, we we saves this as library.bib), and we've also specified the style format using the option 'csl'.
+
+Any number of style formats can be downloaded from [here](http://zotero.org/styles), to match whatever journal or style you need to use. Or write your own. Just save it in your working directory, and call it by name, as above. 
+
+#### The end product:
+The simplest way to really see how great Pandoc is is to try somet of this code. Or compare my sourcecode with my [output](http://www.filedropper.com/demo_2).
+
+
+#### Other approaches:
+A number of other good options exist. You could for instance use the package 'pander' together with a very clever set of utilities [knitcitation](http://www.carlboettiger.info/2012/05/30/knitcitations.html) to keep the operation within R. It's a bit more fiddly, and in my experience sllightly more buggy (Importing into R adds an extra step in which references can get corrupted), but it works remarkably well. For this, see the code below:
+```{r echo=T, eval=F}
+#For exporting to word from within R
+library(pander)
+name="demo"
+knit(paste0(name,".Rmd"), encoding="utf-8")
+Pandoc.brew(file= paste0(name,".md"), output = paste0(-name,"docx"), convert = 'docx')
+
+#Importing references to within R. 
+library(devtools)
+install_github("knitcitations", "cboettig")
+library(knitcitations)
+bib <- read.bibtex("library.bib.part")
+```
+
+If you do go with the latter option, you might find this function useful - it will alow you to search within your reference library, and return the citation key for any matches. Very handy for that reference where you can't remember year of publication:
+```{r echo=T, eval=F}
+ref <- function(x){
+   bib[grep(x,bib,ignore.case=T)]$key
+}
+```
